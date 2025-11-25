@@ -1,0 +1,10 @@
+variant_id,clinical_significance,hgvs_nucleotide,hgvs_protein,variation_type,review_status
+4280310,Likely benign,NG_008753.1:g.66713A>C,NP_733842.2:p.Ala1299=,,"criteria provided, single submitter"
+3769508,Uncertain significance,NG_007729.1:g.16463G>A,LRG_993p1:p.Pro25=,,"criteria provided, single submitter"
+3645258,Conflicting classifications of pathogenicity,NG_007406.1:g.23398del,,,"criteria provided, conflicting classifications"
+3630045,Uncertain significance,NG_011468.1:g.7729G>A,NP_004985.2:p.Gly296Ser,,"criteria provided, single submitter"
+1076533,Uncertain significance,NG_007884.1:g.26553C>A,,,"criteria provided, single submitter"
+827662,Likely benign,NG_012772.3:g.22817G>A,LRG_293p1:p.Pro606=,,"criteria provided, multiple submitters, no conflicts"
+801186,Likely pathogenic,NG_012047.2:g.84295G>C,,,"criteria provided, multiple submitters, no conflicts"
+801184,Uncertain significance,NG_012047.2:g.85895A>G,NP_000456.2:p.Thr734Ala,,"criteria provided, multiple submitters, no conflicts"
+633256,Uncertain significance,LRG_293:g.60073A>G,NP_000050.2:p.Ile2828Val,,"criteria provided, multiple submitters, no conflicts"
