@@ -1,10 +1,50 @@
 variant_id,clinical_significance,hgvs_nucleotide,hgvs_protein,variation_type,review_status
-4280310,Likely benign,NG_008753.1:g.66713A>C,NP_733842.2:p.Ala1299=,,"criteria provided, single submitter"
-3769508,Uncertain significance,NG_007729.1:g.16463G>A,LRG_993p1:p.Pro25=,,"criteria provided, single submitter"
-3645258,Conflicting classifications of pathogenicity,NG_007406.1:g.23398del,,,"criteria provided, conflicting classifications"
-3630045,Uncertain significance,NG_011468.1:g.7729G>A,NP_004985.2:p.Gly296Ser,,"criteria provided, single submitter"
-1076533,Uncertain significance,NG_007884.1:g.26553C>A,,,"criteria provided, single submitter"
-827662,Likely benign,NG_012772.3:g.22817G>A,LRG_293p1:p.Pro606=,,"criteria provided, multiple submitters, no conflicts"
-801186,Likely pathogenic,NG_012047.2:g.84295G>C,,,"criteria provided, multiple submitters, no conflicts"
-801184,Uncertain significance,NG_012047.2:g.85895A>G,NP_000456.2:p.Thr734Ala,,"criteria provided, multiple submitters, no conflicts"
-633256,Uncertain significance,LRG_293:g.60073A>G,NP_000050.2:p.Ile2828Val,,"criteria provided, multiple submitters, no conflicts"
+869314,Pathogenic,NM_004595.4:c.983A>G,,single nucleotide variant,classified by single submitter
+869313,Pathogenic,NM_000965.3:c.1159C>A,,single nucleotide variant,classified by single submitter
+869312,Pathogenic,NM_000965.3:c.1159C>T,,single nucleotide variant,classified by single submitter
+869311,Pathogenic,NM_000965.3:c.1205_1206dupTC,,Duplication,classified by single submitter
+869310,Pathogenic,NM_000965.3:c.355C>T,,single nucleotide variant,classified by single submitter
+869308,Pathogenic,NM_005765.2:c.345C>T,,single nucleotide variant,classified by single submitter
+869307,Pathogenic,NM_006208.2:c.446G>C,,single nucleotide variant,classified by single submitter
+869306,Pathogenic,NM_006208.2:c.491G>C,,single nucleotide variant,classified by single submitter
+869305,Pathogenic,NM_006208.2:c.530G>A,,single nucleotide variant,classified by single submitter
+869304,Pathogenic,NM_000833.3:c.2041C>T,,single nucleotide variant,classified by single submitter
+869303,Pathogenic,NM_000833.3:c.1954T>G,,single nucleotide variant,classified by single submitter
+869302,Pathogenic,NM_000833.3:c.1553G>A,,single nucleotide variant,classified by single submitter
+869301,Pathogenic,NM_000833.3:c.1123-2A>G,,single nucleotide variant,classified by single submitter
+869300,Pathogenic,NM_000833.3:c.1592C>T,,single nucleotide variant,classified by single submitter
+869299,Pathogenic,NM_000833.3:c.2829C>G,,single nucleotide variant,classified by single submitter
+869298,Pathogenic,NM_000833.3:c.2T>C,,single nucleotide variant,classified by single submitter
+869297,Pathogenic,NM_000833.3:c.1007+1G>A,,single nucleotide variant,classified by single submitter
+869296,Pathogenic,NM_000165.3:c.617A>G,,single nucleotide variant,classified by single submitter
+869283,Pathogenic,NM_004181.4:c.20A>C,,single nucleotide variant,classified by single submitter
+869281,Pathogenic,NM_002608.2:c.445C>T,,single nucleotide variant,classified by single submitter
+869279,Pathogenic,NM_002608.2:c.356T>C,,single nucleotide variant,classified by single submitter
+869274,Pathogenic,NM_006749.4:c.1802C>T,,single nucleotide variant,classified by single submitter
+869273,Pathogenic,NM_006749.4:c.1802C>G,,single nucleotide variant,classified by single submitter
+869272,Pathogenic,NM_004990.3:c.1568T>C,,single nucleotide variant,classified by single submitter
+869271,Pathogenic,NM_004990.3:c.1108T>C,,single nucleotide variant,classified by single submitter
+869269,Pathogenic,NM_000394.2:c.62G>A,,single nucleotide variant,classified by single submitter
+869268,Pathogenic,NM_000394.2:c.61C>T,,single nucleotide variant,classified by single submitter
+869267,Pathogenic,NM_000394.2:c.34C>T,,single nucleotide variant,classified by single submitter
+869265,Pathogenic,NM_000394.2:c.160C>T,,single nucleotide variant,classified by single submitter
+869262,Pathogenic,NM_005745.7:c.97C>T,,single nucleotide variant,classified by single submitter
+869260,Pathogenic,NM_005334.2:c.217G>A,,single nucleotide variant,classified by single submitter
+869258,Pathogenic,NM_005334.2:c.218C>T,,single nucleotide variant,classified by single submitter
+869256,Pathogenic,NM_020988.2:c.607G>A,,single nucleotide variant,classified by single submitter
+869255,Pathogenic,NM_020988.2:c.572_592del,,Deletion,classified by single submitter
+869254,Pathogenic,NM_020988.2:c.521A>G,,single nucleotide variant,classified by single submitter
+869253,Pathogenic,NM_020988.2:c.836T>A,,single nucleotide variant,classified by single submitter
+869250,Pathogenic,NM_001059.2:c.766T>C,,single nucleotide variant,classified by single submitter
+869246,Pathogenic,NM_000257.2:c.847T>G,,single nucleotide variant,classified by single submitter
+869244,Pathogenic,NM_023110.2:c.494T>C,,single nucleotide variant,classified by single submitter
+869242,Pathogenic,NM_001961.3:c.1787C>A,,single nucleotide variant,classified by single submitter
+869241,Pathogenic,NM_020989.3:c.385G>T,,single nucleotide variant,classified by single submitter
+869234,Pathogenic,LRG_132t1:c.349G>A,,single nucleotide variant,classified by single submitter
+869231,Pathogenic,NM_000526.4:c.357G>A,,single nucleotide variant,classified by single submitter
+869213,Pathogenic,NM_031157.2:c.956A>G,,single nucleotide variant,classified by single submitter
+869111,Pathogenic,NM_005430.3:c.565G>T,,single nucleotide variant,classified by single submitter
+862436,Pathogenic,LRG_128t1:c.83G>A,,single nucleotide variant,classified by single submitter
+801186,Pathogenic,NM_005141.4:c.605T>A,,single nucleotide variant,classified by single submitter
+633258,pathogenic,NM_001258026.1:c.-122G>A,,single nucleotide variant,classified by single submitter
+633256,pathogenic,NM_001258026.1:c.475T>C,,single nucleotide variant,classified by single submitter

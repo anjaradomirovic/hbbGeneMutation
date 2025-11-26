@@ -74,7 +74,7 @@ class SequenceTools:
                     print(f"Obradjeno {i}/{len(id_list[:max_results])} varijanti.")
                 try:
                     # Preuzimanje XML podataka za varijantu
-                    handle = Entrez.efetch(db="clinvar", id=variant_id, rettype="vcv", retmode="xml")
+                    handle = Entrez.efetch(db="clinvar", id=variant_id, rettype="clinvarset", retmode="xml")
                     xml_data = handle.read()
                     handle.close()
 
@@ -114,65 +114,233 @@ class SequenceTools:
 
     def _parse_clinvar_xml(self, root, variant_id):
         """
-        Parsira ClinVar XML koristeći ElementTree.
-        """
+                   Parsira ClinVar XML - SA DEBUGGINGOM
+                   """
         try:
             mutation_info = {
                 'variant_id': variant_id,
-                'clinical_significance': 'Unknown',
+                'clinical_significance': None,
                 'hgvs_nucleotide': None,
                 'hgvs_protein': None,
                 'variation_type': None,
                 'review_status': None
             }
 
-            # Pronađi ClassifiedRecord
-            classified_record = root.find('.//ClassifiedRecord')
-            if classified_record is None:
-                return None
+            # ========== 1. CLINICAL SIGNIFICANCE ==========
 
-            # Ekstrakcija kliničkog značaja
-            germline_class = classified_record.find('.//GermlineClassification')
-            if germline_class is not None:
-                description = germline_class.find('Description')
-                if description is not None:
-                    mutation_info['clinical_significance'] = description.text
+            # Pokušaj 1: GermlineClassification (najčešća struktura)
+            germline = root.find('.//GermlineClassification/Description')
+            if germline is not None and germline.text:
+                mutation_info['clinical_significance'] = germline.text
 
-                review_status = germline_class.find('ReviewStatus')
-                if review_status is not None:
-                    mutation_info['review_status'] = review_status.text
+            # Pokušaj 2: Stara struktura
+            if not mutation_info['clinical_significance']:
+                clin_sig = root.find('.//ClinicalSignificance/Description')
+                if clin_sig is not None and clin_sig.text:
+                    mutation_info['clinical_significance'] = clin_sig.text
 
-            # Ekstrakcija HGVS notacije
-            simple_allele = classified_record.find('.//SimpleAllele')
-            if simple_allele is not None:
-                # Variation type
-                variation_type = simple_allele.get('VariationType')
-                if variation_type:
-                    mutation_info['variation_type'] = variation_type
+            # Pokušaj 3: RCVList/RCVAccession (još starija struktura)
+            if not mutation_info['clinical_significance']:
+                rcv = root.find('.//RCVList/RCVAccession/ClassifiedConditionList')
+                if rcv is not None:
+                    interpretation = root.find('.//Interpretation/Description')
+                    if interpretation is not None and interpretation.text:
+                        mutation_info['clinical_significance'] = interpretation.text
 
-                # HGVS expressions
-                for hgvs in simple_allele.findall('.//HGVSlist/HGVS'):
-                    nuc_expr = hgvs.find('NucleotideExpression')
-                    if nuc_expr is not None:
-                        expr = nuc_expr.find('Expression')
-                        if expr is not None and expr.text:
+            # Review status
+            review = root.find('.//ReviewStatus')
+            if review is not None and review.text:
+                mutation_info['review_status'] = review.text
+
+            # ========== 2. HGVS NUCLEOTIDE ==========
+
+            hgvs_locations_tried = []
+
+            # Pokušaj 1: SimpleAllele/HGVS
+            for hgvs in root.findall('.//SimpleAllele//HGVS'):
+                hgvs_locations_tried.append("SimpleAllele")
+                nuc_expr = hgvs.find('.//NucleotideExpression/Expression')
+                if nuc_expr is not None and nuc_expr.text:
+                    mutation_info['hgvs_nucleotide'] = nuc_expr.text
+
+                    prot_expr = hgvs.find('.//ProteinExpression/Expression')
+                    if prot_expr is not None and prot_expr.text:
+                        mutation_info['hgvs_protein'] = prot_expr.text
+                    break
+
+            # Pokušaj 2: MeasureSet
+            if not mutation_info['hgvs_nucleotide']:
+                for hgvs in root.findall('.//MeasureSet//HGVS'):
+                    hgvs_locations_tried.append("MeasureSet")
+                    nuc_expr = hgvs.find('.//NucleotideExpression/Expression')
+                    if nuc_expr is not None and nuc_expr.text:
+                        mutation_info['hgvs_nucleotide'] = nuc_expr.text
+
+                        prot_expr = hgvs.find('.//ProteinExpression/Expression')
+                        if prot_expr is not None and prot_expr.text:
+                            mutation_info['hgvs_protein'] = prot_expr.text
+                        break
+
+            # Pokušaj 3: Measure/AttributeSet (HGVS kao atribut)
+            if not mutation_info['hgvs_nucleotide']:
+                for attr in root.findall('.//Attribute'):
+                    attr_type = attr.get('Type', '')
+                    hgvs_locations_tried.append(f"Attribute:{attr_type}")
+
+                    if attr.text:
+                        # HGVS coding (c.)
+                        if 'HGVS, coding' in attr_type or 'HGVS, genomic' in attr_type:
+                            mutation_info['hgvs_nucleotide'] = attr.text
+                            break
+                        # Prepoznaj po prefiksu
+                        elif attr.text.startswith(('c.', 'g.', 'n.', 'm.')) and not attr.text.startswith('p.'):
+                            mutation_info['hgvs_nucleotide'] = attr.text
+                            break
+
+            # Pokušaj 4: Bilo koji NucleotideExpression
+            if not mutation_info['hgvs_nucleotide']:
+                hgvs_locations_tried.append("Any NucleotideExpression")
+                for nuc_expr in root.findall('.//NucleotideExpression'):
+                    expr = nuc_expr.find('Expression')
+                    if expr is not None and expr.text:
+                        # Proveri da li je za HBB gen
+                        sequence_acc = nuc_expr.find('.//SequenceAccession')
+                        if sequence_acc is not None:
+                            acc = sequence_acc.text
+                            # NM_000518 je RefSeq za HBB
+                            if 'NM_000518' in acc or not acc:
+                                mutation_info['hgvs_nucleotide'] = expr.text
+                                break
+                        else:
                             mutation_info['hgvs_nucleotide'] = expr.text
+                            break
 
-                    prot_expr = hgvs.find('ProteinExpression')
-                    if prot_expr is not None:
-                        expr = prot_expr.find('Expression')
-                        if expr is not None and expr.text:
-                            mutation_info['hgvs_protein'] = expr.text
+            # Variation type
+            simple_allele = root.find('.//SimpleAllele')
+            if simple_allele is not None:
+                var_type = simple_allele.get('VariationType')
+                if var_type:
+                    mutation_info['variation_type'] = var_type
 
-            # Vraćaj samo ako ima validne podatke
-            if mutation_info['clinical_significance'] != 'Unknown' and \
-                    (mutation_info['hgvs_nucleotide'] or mutation_info['hgvs_protein']):
+            if not mutation_info['variation_type']:
+                measure = root.find('.//Measure')
+                if measure is not None:
+                    var_type = measure.get('Type')
+                    if var_type:
+                        mutation_info['variation_type'] = var_type
+
+            # ========== DEBUGGING OUTPUT ==========
+
+            has_clin_sig = mutation_info['clinical_significance'] is not None
+            has_hgvs = mutation_info['hgvs_nucleotide'] is not None
+
+            if not (has_clin_sig and has_hgvs):
+                print(f"\n[SKIP] {variant_id}:")
+                print(
+                    f"  Clinical Significance: {'✓' if has_clin_sig else '✗'} {mutation_info['clinical_significance']}")
+                print(f"  HGVS Nucleotide: {'✓' if has_hgvs else '✗'} {mutation_info['hgvs_nucleotide']}")
+                print(f"  HGVS locations tried: {set(hgvs_locations_tried)}")
+
+                # Prikaži XML strukturu za debugging
+                if not has_hgvs:
+                    print(f"  Available XML tags: {[elem.tag for elem in root.iter()][:20]}")
+
+            # ========== VALIDACIJA ==========
+
+            if has_clin_sig and has_hgvs:
                 return mutation_info
 
             return None
 
         except Exception as e:
+            print(f"[ERROR] {variant_id}: {str(e)}")
+            import traceback
+            traceback.print_exc()
             return None
+
+
+    # def _parse_clinvar_xml(self, root, variant_id):
+    #     """
+    #           Parsira ClinVar XML koristeći ElementTree.
+    #           """
+    #     try:
+    #         mutation_info = {
+    #             'variant_id': variant_id,
+    #             'clinical_significance': 'Unknown',
+    #             'hgvs_nucleotide': None,
+    #             'hgvs_protein': None,
+    #             'variation_type': None,
+    #             'review_status': None
+    #         }
+    #
+    #         # Pronađi ClassifiedRecord
+    #         classified_record = root.find('.//ClassifiedRecord')
+    #         if classified_record is None:
+    #             return None
+    #
+    #         # Ekstrakcija kliničkog značaja
+    #         germline_class = classified_record.find('.//GermlineClassification')
+    #         if germline_class is not None:
+    #             description = germline_class.find('Description')
+    #             if description is not None:
+    #                 mutation_info['clinical_significance'] = description.text
+    #
+    #             review_status = germline_class.find('ReviewStatus')
+    #             if review_status is not None:
+    #                 mutation_info['review_status'] = review_status.text
+    #
+    #         # Ekstrakcija HGVS notacije
+    #         simple_allele = classified_record.find('.//SimpleAllele')
+    #         if simple_allele is not None:
+    #             # Variation type
+    #             variation_type = simple_allele.get('VariationType')
+    #             if variation_type:
+    #                 mutation_info['variation_type'] = variation_type
+    #
+    #             # HGVS expressions
+    #             for hgvs in simple_allele.findall('.//HGVSlist/HGVS'):
+    #                 nuc_expr = hgvs.find('NucleotideExpression')
+    #                 if nuc_expr is not None:
+    #                     expr = nuc_expr.find('Expression')
+    #                     if expr is not None and expr.text:
+    #                         mutation_info['hgvs_nucleotide'] = expr.text
+    #
+    #                 prot_expr = hgvs.find('ProteinExpression')
+    #                 if prot_expr is not None:
+    #                     expr = prot_expr.find('Expression')
+    #                     if expr is not None and expr.text:
+    #                         mutation_info['hgvs_protein'] = expr.text
+    #
+    #         # Ako nema SimpleAllele, probaj MeasureSet
+    #         if mutation_info['hgvs_nucleotide'] is None and mutation_info['hgvs_protein'] is None:
+    #             measure_set = root.find('.//MeasureSet')
+    #             if measure_set is not None:
+    #                 for measure in measure_set.findall('.//Measure'):
+    #                     for hgvs in measure.findall('.//HGVSlist/HGVS'):
+    #                         nuc_expr = hgvs.find('NucleotideExpression')
+    #                         if nuc_expr is not None:
+    #                             expr = nuc_expr.find('Expression')
+    #                             if expr is not None and expr.text:
+    #                                 mutation_info['hgvs_nucleotide'] = expr.text
+    #
+    #                         prot_expr = hgvs.find('ProteinExpression')
+    #                         if prot_expr is not None:
+    #                             expr = prot_expr.find('Expression')
+    #                             if expr is not None and expr.text:
+    #                                 mutation_info['hgvs_protein'] = expr.text
+    #
+    #         # Vraćaj samo ako ima validne podatke
+    #         if mutation_info['clinical_significance'] != 'Unknown' and \
+    #                 (mutation_info['hgvs_nucleotide'] or mutation_info['hgvs_protein']):
+    #             return mutation_info
+    #
+    #         return None
+    # except Exception as e:
+    # return None
+
+
+
+
 
 
 

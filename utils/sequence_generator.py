@@ -42,12 +42,7 @@ class SequenceGenerator:
 
         hgvs = str(hgvs_notation)
 
-        #uklanjamo visak:
-        hgvs = hgvs.split(":")[1]  # daje "c.76A>T"
-        hgvs = hgvs.replace("c.", "")  # daje "76A>T"
-
-
-
+        #debug-provera koja je mutacija
         if ">" in hgvs:
             print("Substitucija")
         elif "del" in hgvs:
@@ -95,12 +90,7 @@ class SequenceGenerator:
 
         return None
 
-    def apply_insertation(self):
-        return None
-    def apply_deletation(self):
-        return None
-    def apply_substitution(self):
-        return None
+
     def apply_mutation(self, reference_seq, mutation_info):
         """
         Primenjuje mutaciju na referentnu sekvencu.
