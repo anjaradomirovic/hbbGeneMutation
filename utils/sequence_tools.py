@@ -1,6 +1,10 @@
+import gzip
+import requests
 from Bio import Entrez, SeqIO
 from Bio.SeqRecord import SeqRecord
 import pandas as pd
+import os
+import tempfile
 import time
 import xml.etree.ElementTree as ET
 import re
@@ -45,236 +49,188 @@ class SequenceTools:
             print(f"Greška prilikom preuzimanja reference: {e}")
             return None
 
-    def preuzmi_clinvar_mutacije(self, output_file="data/raw/clinvar_hbb.csv", max_results=200):
-        print(f"\nPreuzimanje HBB mutacija iz ClinVar baze.")
-
-        try:
-            # pretraga
-            search_term = 'HBB[gene] AND "clinsig pathogenic"[Properties]'
-
-            print(f"  Pretraga: {search_term}")
-            handle = Entrez.esearch(db="clinvar", term=search_term, retmax=max_results, usehistory="y")
-            search_results = Entrez.read(handle)
-            handle.close()
 
 
-            id_list = search_results["IdList"]
-            print("ID-jevi:", id_list)
-            print(f"  Pronađeno {len(id_list)} varijanti")
-
-            if not id_list:
-                print("  Nije pronađena nijedna varijanta!")
-                return None
-
-
-            # preuzimanje podataka
-            mutations_data = []
-            print(f"  Preuzimanje podataka o mutacijama...")
-            for i, variant_id in enumerate(id_list[:max_results], 1):
-                if i % 50 == 0:
-                    print(f"Obradjeno {i}/{len(id_list[:max_results])} varijanti.")
-                try:
-                    # Preuzimanje XML podataka za varijantu
-                    handle = Entrez.efetch(db="clinvar", id=variant_id, rettype="clinvarset", retmode="xml")
-                    xml_data = handle.read()
-                    handle.close()
-
-                    # Parsiranje sa ElementTree umesto Entrez.read()
-                    root = ET.fromstring(xml_data)
-
-                    # Parsiranje podataka
-                    mutation_info = self._parse_clinvar_xml(root, variant_id)
-                    if mutation_info:
-                        mutations_data.append(mutation_info)
-
-                    # Pauza da ne preopteretimo server
-                    time.sleep(0.2)
-
-                except ET.ParseError as e:
-                    print(f"    XML parse greška kod varijante {variant_id}: {e}")
-                    continue
-                except Exception as e:
-                    print(f"    Greška kod varijante {variant_id}: {e}")
-                    continue
-
-            df = pd.DataFrame(mutations_data)
-
-            if not df.empty:
-                df.to_csv(output_file, index=False)
-                print(f"\n✓ Mutacije uspešno sačuvane u: {output_file}")
-                print(f"  Ukupno mutacija: {len(df)}")
-                print(f"\n  Distribucija po kliničkom značaju:")
-                print(df['clinical_significance'].value_counts())
-                return df
-            else:
-                print("  Nije pronađena nijedna validna mutacija!")
-                return None
-        except Exception as e:
-            print(f"Greška prilikom preuzimanja iz ClinVar: {e}")
-            return None
-
-    def _parse_clinvar_xml(self, root, variant_id):
+    def preuzmi_clinvar_hbb_vcf(self, output_file="data/raw/clinvar_hbb.csv"):
         """
-                   Parsira ClinVar XML - SA DEBUGGINGOM
-                   """
+        Preuzima HBB mutacije iz ClinVar VCF.
+        Automatski briše VCF fajl nakon obrade!
+        """
+
+        if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
+            print(f"\n✓ CSV fajl već postoji i nije prazan: {output_file}")
+            return
+
+            # ClinVar VCF URL
+        vcf_url = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"
+
+        # Kreiraj privremeni fajl koji će se automatski obrisati
+        temp_vcf = None
+
         try:
-            mutation_info = {
-                'variant_id': variant_id,
-                'clinical_significance': None,
-                'hgvs_nucleotide': None,
-                'hgvs_protein': None,
-                'variation_type': None,
-                'review_status': None
+            print(f"\n[1] Preuzimanje ClinVar VCF fajla")
+
+            # Preuzmi u privremeni fajl
+            with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.vcf.gz') as temp_file:
+                temp_vcf = temp_file.name
+
+                response = requests.get(vcf_url, stream=True)
+                response.raise_for_status()
+
+                # Prikaži progres
+                total_size = int(response.headers.get('content-length', 0))
+                downloaded = 0
+
+                for chunk in response.iter_content(chunk_size=8192):
+                    temp_file.write(chunk)
+                    downloaded += len(chunk)
+
+                    if total_size > 0 and downloaded % (10 * 1024 * 1024) == 0:  # Svaki 10MB
+                        progress = (downloaded / total_size) * 100
+                        print(
+                            f"    Preuzeto: {downloaded / 1024 / 1024:.1f}MB / {total_size / 1024 / 1024:.1f}MB ({progress:.1f}%)")
+
+            print(f"Preuzeto u privremeni fajl: {temp_vcf}")
+            file_size_mb = os.path.getsize(temp_vcf) / 1024 / 1024
+            print(f"Veličina: {file_size_mb:.1f} MB")
+
+            # HBB koordinate
+            hbb_chr = "11"
+            hbb_start = 5225464
+            hbb_end = 5229395
+
+            print(f"\n[2] Filtriranje HBB regiona (chr{hbb_chr}:{hbb_start}-{hbb_end})")
+
+            hbb_mutations = []
+            line_count = 0
+
+            # Procesuiraj VCF direktno iz privremenog fajla
+            with gzip.open(temp_vcf, 'rt') as f:
+                for line in f:
+                    line_count += 1
+
+                    if line.startswith('#'):
+                        continue
+
+                    parts = line.strip().split('\t')
+                    if len(parts) < 8:
+                        continue
+
+                    chrom = parts[0]
+                    pos = int(parts[1])
+                    variant_id = parts[2]
+                    ref = parts[3]
+                    alt = parts[4]
+                    info = parts[7]
+
+                    # Filtriraj HBB region
+                    if chrom == hbb_chr and hbb_start <= pos <= hbb_end:
+                        clnsig = self._extract_vcf_info(info, 'CLNSIG')
+                        clnhgvs = self._extract_vcf_info(info, 'CLNHGVS')
+                        geneinfo = self._extract_vcf_info(info, 'GENEINFO')
+                        clnvc = self._extract_vcf_info(info, 'CLNVC')
+                        clnrevstat = self._extract_vcf_info(info, 'CLNREVSTAT')
+
+                        if geneinfo and 'HBB' in geneinfo:
+                            hbb_mutations.append({
+                                'variant_id': variant_id,
+                                'chromosome': chrom,
+                                'position': pos,
+                                'ref_allele': ref,
+                                'alt_allele': alt,
+                                'hgvs': clnhgvs if clnhgvs else 'N/A',
+                                'clinical_significance': clnsig if clnsig else 'not_provided',
+                                'review_status': clnrevstat if clnrevstat else 'N/A',
+                                'variation_type': clnvc if clnvc else 'N/A',
+                                'gene': 'HBB'
+                            })
+
+                    if line_count % 100000 == 0:
+                        print(f"    Obrađeno {line_count:,} linija... (HBB: {len(hbb_mutations)})")
+
+            print(f"    ✓ Ukupno: {line_count:,} linija")
+            print(f"    ✓ Pronađeno {len(hbb_mutations)} HBB mutacija")
+
+            # ODMAH OBRIŠI VCF FAJL
+            print(f"\n[3] Brisanje privremenog VCF fajla...")
+            if os.path.exists(temp_vcf):
+                os.remove(temp_vcf)
+                print(f"    ✓ Obrisan: {temp_vcf} ({file_size_mb:.1f} MB oslobođeno)")
+                temp_vcf = None  # Postavi na None da finally blok ne pokuša ponovo
+
+            # Kreiraj DataFrame
+            df = pd.DataFrame(hbb_mutations)
+
+            if df.empty:
+                print("\n❌ Nije pronađena nijedna HBB mutacija!")
+                return None
+
+            # Mapiraj kodove kliničkog značaja
+            clnsig_map = {
+                '0': 'Uncertain_significance',
+                '1': 'not_provided',
+                '2': 'Benign',
+                '3': 'Likely_benign',
+                '4': 'Likely_pathogenic',
+                '5': 'Pathogenic',
+                '6': 'drug_response',
+                '7': 'association',
+                '255': 'other'
             }
 
-            # ========== 1. CLINICAL SIGNIFICANCE ==========
+            df['clinical_significance'] = df['clinical_significance'].apply(
+                lambda x: clnsig_map.get(str(x), x) if pd.notna(x) else 'not_provided'
+            )
 
-            # Pokušaj 1: GermlineClassification (najčešća struktura)
-            germline = root.find('.//GermlineClassification/Description')
-            if germline is not None and germline.text:
-                mutation_info['clinical_significance'] = germline.text
+            # Sačuvaj CSV
+            print(f"\n[4] Čuvanje u CSV")
+            df.to_csv(output_file, index=False)
 
-            # Pokušaj 2: Stara struktura
-            if not mutation_info['clinical_significance']:
-                clin_sig = root.find('.//ClinicalSignificance/Description')
-                if clin_sig is not None and clin_sig.text:
-                    mutation_info['clinical_significance'] = clin_sig.text
+            csv_size_kb = os.path.getsize(output_file) / 1024
 
-            # Pokušaj 3: RCVList/RCVAccession (još starija struktura)
-            if not mutation_info['clinical_significance']:
-                for rcv in root.findall('.//RCVList/RCVAccession'):
-                    # proveri Interpretation i/ili ClinicalSignificance pod RCV
-                    interp = rcv.find('.//Interpretation/Description')
-                    if interp is not None and interp.text:
-                        mutation_info['clinical_significance'] = interp.text
-                        break
-                    # fallback: možda je direktno u RCVAccession tagu
-                    elif rcv.text:
-                        mutation_info['clinical_significance'] = rcv.text
-                        break
-            # if not mutation_info['clinical_significance']:
-            #     rcv = root.find('.//RCVList/RCVAccession/ClassifiedConditionList')
-            #     if rcv is not None:
-            #         interpretation = root.find('.//Interpretation/Description')
-            #         if interpretation is not None and interpretation.text:
-            #             mutation_info['clinical_significance'] = interpretation.text
+            print(f"CSV fajl: {output_file}")
+            print(f"Veličina CSV-a: {csv_size_kb:.1f} KB")
+            print(f"Ukupno mutacija: {len(df)}")
+            print(f"VCF fajl je automatski obrisan")
 
-            # Review status
-            review = root.find('.//ReviewStatus')
-            if review is not None and review.text:
-                mutation_info['review_status'] = review.text
+            print(f"\nDISTRIBUCIJA PO KLINIČKOM ZNAČAJU:")
+            print(df['clinical_significance'].value_counts())
 
-            # ========== 2. HGVS NUCLEOTIDE ==========
+            print(f"\n🔍 PRIMER (prvih 3 mutacije):")
+            print(df[['variant_id', 'position', 'ref_allele', 'alt_allele',
+                      'hgvs', 'clinical_significance']].head(3))
 
-            hgvs_locations_tried = []
-
-            # Pokušaj 1: SimpleAllele/HGVS
-            for hgvs in root.findall('.//SimpleAllele//HGVS'):
-                hgvs_locations_tried.append("SimpleAllele")
-                nuc_expr = hgvs.find('.//NucleotideExpression/Expression')
-                if nuc_expr is not None and nuc_expr.text:
-                    mutation_info['hgvs_nucleotide'] = nuc_expr.text
-
-                    prot_expr = hgvs.find('.//ProteinExpression/Expression')
-                    if prot_expr is not None and prot_expr.text:
-                        mutation_info['hgvs_protein'] = prot_expr.text
-                    break
-
-            # Pokušaj 2: MeasureSet
-            if not mutation_info['hgvs_nucleotide']:
-                for hgvs in root.findall('.//MeasureSet//HGVS'):
-                    hgvs_locations_tried.append("MeasureSet")
-                    nuc_expr = hgvs.find('.//NucleotideExpression/Expression')
-                    if nuc_expr is not None and nuc_expr.text:
-                        mutation_info['hgvs_nucleotide'] = nuc_expr.text
-
-                        prot_expr = hgvs.find('.//ProteinExpression/Expression')
-                        if prot_expr is not None and prot_expr.text:
-                            mutation_info['hgvs_protein'] = prot_expr.text
-                        break
-
-            # Pokušaj 3: Measure/AttributeSet (HGVS kao atribut)
-            if not mutation_info['hgvs_nucleotide']:
-                hgvs_pattern = re.compile(r'^[cgnm]\..*')
-                for attr in root.findall('.//Attribute'):
-                    attr_type = attr.get('Type', '')
-                    hgvs_locations_tried.append(f"Attribute:{attr_type}")
-
-                    # if attr.text:
-                    #     # HGVS coding (c.)
-                    #     if 'HGVS, coding' in attr_type or 'HGVS, genomic' in attr_type:
-                    #         mutation_info['hgvs_nucleotide'] = attr.text
-                    #         break
-                    if attr.text and hgvs_pattern.match(attr.text):
-                        mutation_info['hgvs_nucleotide'] = attr.text
-                        break
-
-                    # Prepoznaj po prefiksu
-                    elif attr.text.startswith(('c.', 'g.', 'n.', 'm.')) and not attr.text.startswith('p.'):
-                            mutation_info['hgvs_nucleotide'] = attr.text
-                            break
-
-            # Pokušaj 4: Bilo koji NucleotideExpression
-            if not mutation_info['hgvs_nucleotide']:
-                hgvs_locations_tried.append("Any NucleotideExpression")
-                for nuc_expr in root.findall('.//NucleotideExpression'):
-                    expr = nuc_expr.find('Expression')
-                    if expr is not None and expr.text:
-                        # Proveri da li je za HBB gen
-                        sequence_acc = nuc_expr.find('.//SequenceAccession')
-                        if sequence_acc is not None:
-                            acc = sequence_acc.text
-                            # NM_000518 je RefSeq za HBB
-                            # if 'NM_000518' in acc or not acc:
-                            #     mutation_info['hgvs_nucleotide'] = expr.text
-                            #     break
-                            if sequence_acc is None or 'NM_000518' in sequence_acc.text:
-                                mutation_info['hgvs_nucleotide'] = expr.text
-                                break
-                        else:
-                            mutation_info['hgvs_nucleotide'] = expr.text
-                            break
-
-            # Variation type
-            simple_allele = root.find('.//SimpleAllele')
-            if simple_allele is not None:
-                var_type = simple_allele.get('VariationType')
-                if var_type:
-                    mutation_info['variation_type'] = var_type
-
-            if not mutation_info['variation_type']:
-                measure = root.find('.//Measure')
-                if measure is not None:
-                    var_type = measure.get('Type')
-                    if var_type:
-                        mutation_info['variation_type'] = var_type
-
-            # ========== DEBUGGING OUTPUT ==========
-
-            has_clin_sig = mutation_info['clinical_significance'] is not None
-            has_hgvs = mutation_info['hgvs_nucleotide'] is not None
-
-            if not (has_clin_sig and has_hgvs):
-                print(f"\n[SKIP] {variant_id}:")
-                print(
-                    f"  Clinical Significance: {'✓' if has_clin_sig else '✗'} {mutation_info['clinical_significance']}")
-                print(f"  HGVS Nucleotide: {'✓' if has_hgvs else '✗'} {mutation_info['hgvs_nucleotide']}")
-                print(f"  HGVS locations tried: {set(hgvs_locations_tried)}")
-
-                # Prikaži XML strukturu za debugging
-                if not has_hgvs:
-                    print(f"  Available XML tags: {[elem.tag for elem in root.iter()][:20]}")
-
-            # ========== VALIDACIJA ==========
-
-            if has_clin_sig and has_hgvs:
-                return mutation_info
-
-            return None
+            return df
 
         except Exception as e:
-            print(f"[ERROR] {variant_id}: {str(e)}")
+            print(f"\n❌ GREŠKA: {e}")
             import traceback
             traceback.print_exc()
             return None
 
+        finally:
+            # Osiguraj da se VCF obriše čak i ako dođe do greške
+            if temp_vcf and os.path.exists(temp_vcf):
+                try:
+                    os.remove(temp_vcf)
+                    print(f"\n🗑️  Privremeni VCF fajl obrisan (cleanup)")
+                except:
+                    pass
+
+    def _extract_vcf_info(self, info_str, key):
+        """
+        Ekstraktuje vrednost iz VCF INFO polja
+
+        Args:
+            info_str: INFO string (npr. "CLNSIG=5;CLNHGVS=NC_000011.10:g.5227002T>C")
+            key: Ključ koji tražimo (npr. "CLNSIG")
+
+        Returns:
+            Vrednost ili None
+        """
+        for item in info_str.split(';'):
+            if '=' in item:
+                k, v = item.split('=', 1)
+                if k == key:
+                    return v
+        return None
