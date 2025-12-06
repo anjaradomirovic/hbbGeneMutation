@@ -1,0 +1,59 @@
+{
+  "gene": {
+    "id": "ENSG00000244734",
+    "symbol": "HBB",
+    "description": "hemoglobin subunit beta [Source:HGNC Symbol;Acc:HGNC:4827]",
+    "chromosome": "11",
+    "start": 5225464,
+    "end": 5229395,
+    "strand": -1,
+    "assembly": "GRCh38"
+  },
+  "transcript": {
+    "id": "ENST00000335295",
+    "start": 5225464,
+    "end": 5227071,
+    "biotype": "protein_coding"
+  },
+  "exons": [
+    {
+      "number": 1,
+      "id": "ENSE00001829867",
+      "start": 5226930,
+      "end": 5227071,
+      "length": 142
+    },
+    {
+      "number": 2,
+      "id": "ENSE00001057381",
+      "start": 5226577,
+      "end": 5226799,
+      "length": 223
+    },
+    {
+      "number": 3,
+      "id": "ENSE00001600613",
+      "start": 5225464,
+      "end": 5225726,
+      "length": 263
+    }
+  ],
+  "introns": [
+    {
+      "number": 1,
+      "start": 5226800,
+      "end": 5226929,
+      "length": 130
+    },
+    {
+      "number": 2,
+      "start": 5225727,
+      "end": 5226576,
+      "length": 850
+    }
+  ],
+  "cds": {
+    "length": 444,
+    "amino_acids": 148
+  }
+}
