@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 
 from utils.HBBMutationProcessor import HBBMutationProcessor
 from utils.intron_obrada import HBBStructure
+from utils.proteinTranslator import ProteinTranslator
 from utils.sequence_tools import SequenceTools
 from model.needleman_wunsch import NeedlemanWunsch
 import os
@@ -128,6 +129,22 @@ def main():
 
     # Ucitavanje sirovog genoma
     # BLAST poravnanje
+
+    try:
+        translator = ProteinTranslator()
+
+        protein_df, protein_stats = translator.process_mutations_file(
+            input_file="data/processed/mutation_with_sequences.csv",
+            output_file="data/processed/protein_translations.csv",
+            reference_mrna_file="data/raw/hbb_reference.fasta"
+        )
+    except Exception as e:
+        print(f"\n❌ GREŠKA pri translaciji: {e}")
+        import traceback
+        traceback.print_exc()
+
+    print("\n✓ Proteini uspešno generisani!")
+
     print("\n Poravnanje sekvenci (BLAST)...")
 
 
