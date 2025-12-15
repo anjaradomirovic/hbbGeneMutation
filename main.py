@@ -252,9 +252,10 @@ def main():
 
     try:
         classifier, results = train_pathogenicity_model(
-            encoded_data_file="data/ml_ready/encoded_proteins.npz",
-            output_dir="data/ml_results",
-            binary_classification=True  # Pathogenic vs Not Pathogenic
+            encoded_data_file='data/ml_ready/encoded_proteins.npz',
+            output_dir='data/ml_results',
+            use_smote=True,  # Koristi SMOTE
+            filter_uncertain=True  # Ukloni Uncertain labele
         )
 
         print("\n✓ Model uspešno istreniran!")

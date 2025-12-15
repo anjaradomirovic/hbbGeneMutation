@@ -390,6 +390,7 @@ variant_id,chromosome,position,ref_allele,alt_allele,hgvs,clinical_significance,
 2035477,11,5225871,C,A,NC_000011.10:g.5225871C>A,Likely_benign,intron,intron_2
 1080748,11,5225871,C,G,NC_000011.10:g.5225871C>G,Likely_benign,intron,intron_2
 632848,11,5225871,C,T,NC_000011.10:g.5225871C>T,Likely_benign,intron,intron_2
+36312,11,5225872,A,C,NC_000011.10:g.5225872A>C,Pathogenic,intron,intron_2
 256346,11,5225872,A,G,NC_000011.10:g.5225872A>G,Likely_benign,intron,intron_2
 1154176,11,5225873,T,A,NC_000011.10:g.5225873T>A,Likely_benign,intron,intron_2
 792476,11,5225873,T,G,NC_000011.10:g.5225873T>G,Likely_benign,intron,intron_2
