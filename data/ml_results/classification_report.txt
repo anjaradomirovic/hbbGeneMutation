@@ -1,0 +1,16 @@
+CLASSIFICATION REPORT - SVM
+================================================================================
+
+                precision    recall  f1-score   support
+
+Not Pathogenic       0.88      1.00      0.93       301
+    Pathogenic       0.86      0.13      0.22        47
+
+      accuracy                           0.88       348
+     macro avg       0.87      0.56      0.58       348
+  weighted avg       0.88      0.88      0.84       348
+
+
+CONFUSION MATRIX:
+[[300   1]
+ [ 41   6]]
