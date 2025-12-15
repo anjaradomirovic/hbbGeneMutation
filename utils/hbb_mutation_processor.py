@@ -316,7 +316,6 @@ class HBBMutationProcessor:
             return None, "Pozicija nije u kodujućem regionu"
 
         if mrna_pos < 0 or mrna_pos >= len(self.mrna_ref):
-            # Umesto greške, vrati referentnu mRNA
             return self.mrna_ref, "mRNA pozicija van opsega - vraćam referentnu mRNA"
 
         ref_allele = ref_allele.upper()
@@ -326,22 +325,17 @@ class HBBMutationProcessor:
             ref_allele = self.reverse_complement(ref_allele)
             alt_allele = self.reverse_complement(alt_allele)
 
-        # Proveri da li se ref alel slaže
         if self.mrna_ref[mrna_pos] != ref_allele:
-            # Pokušaj reverse complement ako se ne slaže
             ref_allele_rc = self.reverse_complement(ref_allele)
             alt_allele_rc = self.reverse_complement(alt_allele)
 
             if self.mrna_ref[mrna_pos] == ref_allele_rc:
-                # Strand je obrnut - koristi RC
                 print(f"    ⚠ Ref alel neslaganje, koristim reverse complement")
                 ref_allele = ref_allele_rc
                 alt_allele = alt_allele_rc
             else:
-                # Stvarno neslaganje - ali nastavi sa alt alelom
                 print(f"    ⚠ Ref alel neslaganje: očekivano {self.mrna_ref[mrna_pos]}, dobijeno {ref_allele}")
                 print(f"    → Nastavljam sa mutacijom (force apply alt allele)")
-                # Ne vraćaj grešku, već primeni alt alel
 
         mutated_mrna = list(self.mrna_ref)
         mutated_mrna[mrna_pos] = alt_allele
@@ -352,10 +346,6 @@ class HBBMutationProcessor:
     def classify_and_process_mutation(self, position, ref_allele, alt_allele, hgvs=None):
         """
         Klasifikuje mutaciju i generiše mRNA
-        ISPRAVKE:
-        - NE proverava SpliceAI za eksone
-        - Za introne/splice sites: ako ne utiče na splicing → vraća ref mRNA kao PROCESSED
-        - Koristi HGVS notaciju kada je dostupna
         """
         result = {
             'position': position,
@@ -377,7 +367,6 @@ class HBBMutationProcessor:
         # Provera 1: Da li je u eksonu?
         in_exon, exon_num, exon_coords = self.is_in_exon(position)
         if in_exon:
-            # NE PROVERAVAMO SPLICEAI ZA EKSONE
             result['location_type'] = 'exon'
             result['location_detail'] = f'exon_{exon_num}'
             result['can_process'] = True
@@ -386,7 +375,6 @@ class HBBMutationProcessor:
                 mutated_mrna, error = self.generate_mutated_mrna(position, ref_allele, alt_allele)
 
                 if error:
-                    # Ako je greška "van opsega", vrati ref mRNA kao PROCESSED
                     if "van opsega" in error.lower():
                         result['mutated_mrna'] = self.mrna_ref
                         result['mrna_length'] = len(self.mrna_ref)
@@ -419,7 +407,6 @@ class HBBMutationProcessor:
             print(
                 f"    Pozicija {position}: {'splice site' if at_splice else f'intron {intron_num}'} - pozivam SpliceAI...")
 
-            # Koristi HGVS ako je dostupno, inače koordinate
             splice_result = self.query_spliceai(
                 hgvs_notation=hgvs,
                 position=position,
@@ -454,7 +441,6 @@ class HBBMutationProcessor:
                     result['status'] = 'SKIPPED'
                     return result
             else:
-                # SpliceAI kaže da NE utiče → vraćamo referentnu mRNA kao PROCESSED
                 print(f"    ✓ SpliceAI: Ne utiče na splicing (score: {splice_result['delta_score']:.3f})")
 
                 result['location_type'] = 'intron' if in_intron else 'splice_site'
@@ -476,19 +462,41 @@ class HBBMutationProcessor:
         return result
 
     def process_clinvar_file(self, input_file='clinvar_hbb.csv',
-                             output_file='mutation_with_sequences.csv'):
+                             output_file='mutation_with_sequences.csv',
+                             skip_processed=True):
         """
-        Procesira ClinVar CSV fajl - SA HGVS NOTACIJOM
+        Procesira ClinVar CSV fajl - SA PRESKAKANJEM VEĆ OBRAĐENIH
+
+        Args:
+            skip_processed: Ako True, preskače redove gde je processing_status == 'PROCESSED'
         """
         print(f"Učitavam {input_file}...")
-        df = pd.read_csv(input_file)
-        print(f"✓ Učitano {len(df)} mutacija\n")
+
+        # ✅ KLJUČNO: Učitaj OUTPUT fajl ako postoji, inače INPUT
+        output_path = Path(output_file)
+        if skip_processed and output_path.exists():
+            print(f"  → Učitavam postojeći output fajl: {output_file}")
+            df = pd.read_csv(output_file)
+        else:
+            df = pd.read_csv(input_file)
+
+        print(f"✓ Učitano {len(df)} mutacija")
+
+        # Proveri koliko je već obrađeno
+        if skip_processed and 'processing_status' in df.columns:
+            already_processed = (df['processing_status'] == 'PROCESSED').sum()
+            to_process = len(df) - already_processed
+            print(f"✓ Već obrađeno: {already_processed} mutacija")
+            print(f"→ Preostalo za obradu: {to_process} mutacija\n")
+        else:
+            print(f"→ Sve mutacije će biti obrađene\n")
 
         results = []
 
         stats = {
             'total': len(df),
-            'processed': 0,
+            'already_processed': 0,
+            'newly_processed': 0,
             'skipped': 0,
             'in_exon': 0,
             'in_intron': 0,
@@ -498,31 +506,57 @@ class HBBMutationProcessor:
             'errors': 0
         }
 
-        print("Procesuiranje mutacija sa SpliceAI analizom...")
+        print("Procesuiranje mutacija...")
         print("=" * 80)
 
         for idx, row in df.iterrows():
+            # ✅ KLJUČNA PROVERA: Preskači već obrađene
+            if skip_processed:
+                # Proveri da li kolone postoje
+                has_status = 'processing_status' in df.columns
+                has_mrna = 'mutated_mrna' in df.columns
+
+                if has_status and has_mrna:
+                    existing_status = str(row.get('processing_status', '')).strip()
+                    existing_mrna = row.get('mutated_mrna')
+
+                    # Proveri da li je PROCESSED i ima validnu mRNA
+                    is_processed = existing_status == 'PROCESSED'
+                    has_valid_mrna = (
+                            pd.notna(existing_mrna) and
+                            existing_mrna != '' and
+                            str(existing_mrna).lower() != 'nan' and
+                            len(str(existing_mrna)) > 10  # mRNA mora biti >10 bp
+                    )
+
+                    if is_processed and has_valid_mrna:
+                        # Već procesiran, samo kopiraj postojeće podatke
+                        results.append(row.to_dict())
+                        stats['already_processed'] += 1
+
+                        if (idx + 1) % 50 == 0:
+                            print(
+                                f"  Obrađeno: {idx + 1}/{len(df)} | Već završeno: {stats['already_processed']} | Novo: {stats['newly_processed']}")
+
+                        continue
+
+            # Uzmi potrebne podatke
             position = row.get('position') or row.get('pos')
             ref_allele = row.get('ref_allele') or row.get('ref')
             alt_allele = row.get('alt_allele') or row.get('alt')
             hgvs = row.get('hgvs') or row.get('HGVS') or row.get('hgvs_genomic')
 
-            # Proveri da li je već procesiran
-            existing_status = row.get('processing_status')
-            if existing_status == 'PROCESSED':
-                print(f"  Red {idx}: već procesiran - preskačem")
-                results.append(row.to_dict())
-                stats['processed'] += 1
-                continue
-
             if pd.isna(position) or pd.isna(ref_allele) or pd.isna(alt_allele):
+                results.append(row.to_dict())
                 continue
 
             position = int(position)
             ref_allele = str(ref_allele).strip()
             alt_allele = str(alt_allele).strip()
 
-            # Klasifikuj i procesiraj SA HGVS
+            print(f"  🔄 Obrađujem red {idx}: {position} {ref_allele}>{alt_allele}")
+
+            # Klasifikuj i procesiraj
             classification = self.classify_and_process_mutation(
                 position, ref_allele, alt_allele, hgvs=hgvs
             )
@@ -543,6 +577,7 @@ class HBBMutationProcessor:
                 'splice_description': classification['splice_description']
             })
 
+            # Statistika
             if classification['splice_affected']:
                 stats['splice_affected'] += 1
 
@@ -550,14 +585,13 @@ class HBBMutationProcessor:
                 stats['in_exon'] += 1
             elif classification['location_type'] == 'intron':
                 stats['in_intron'] += 1
-            elif classification['location_type'] == 'splice_site' or classification[
-                'location_type'] == 'splice_affected':
+            elif classification['location_type'] in ['splice_site', 'splice_affected']:
                 stats['at_splice_site'] += 1
             elif classification['location_type'] == 'outside':
                 stats['outside'] += 1
 
             if classification['status'] == 'PROCESSED':
-                stats['processed'] += 1
+                stats['newly_processed'] += 1
             elif classification['status'] == 'SKIPPED':
                 stats['skipped'] += 1
             elif classification['status'] == 'ERROR':
@@ -566,11 +600,13 @@ class HBBMutationProcessor:
             results.append(result_row)
 
             if (idx + 1) % 20 == 0:
-                print(f"  Obrađeno: {idx + 1}/{len(df)} | Procesuirano: {stats['processed']}")
+                print(
+                    f"  Obrađeno: {idx + 1}/{len(df)} | Već završeno: {stats['already_processed']} | Novo: {stats['newly_processed']}")
 
             # Rate limiting za SpliceAI API
             time.sleep(0.3)
 
+        # Sačuvaj rezultate
         result_df = pd.DataFrame(results)
 
         new_cols = ['original_index', 'position', 'ref_allele', 'alt_allele',
@@ -587,22 +623,27 @@ class HBBMutationProcessor:
         output_dir.mkdir(parents=True, exist_ok=True)
         result_df.to_csv(output_file, index=False)
 
+        # Finalna statistika
         print("\n" + "=" * 80)
         print("ZAVRŠNA STATISTIKA")
         print("=" * 80)
         print(f"Ukupno mutacija: {stats['total']}")
-        print(f"\nLokacije:")
+        print(f"\n🔄 Procesiranje:")
+        print(f"  • ✅ Već obrađeno:    {stats['already_processed']:4d} (preskočeno)")
+        print(f"  • 🆕 Novo procesuirano: {stats['newly_processed']:4d}")
+        print(f"\n📍 Lokacije (novo):")
         print(f"  • U eksonu:        {stats['in_exon']:4d}")
         print(f"  • U intronu:       {stats['in_intron']:4d}")
         print(f"  • Na/utiče splice: {stats['at_splice_site']:4d}")
         print(f"  • Van gena:        {stats['outside']:4d}")
-        print(f"\n  ⚠️  SpliceAI uticaj: {stats['splice_affected']:4d} mutacija utiču na splicing")
-        print(f"\nStatus:")
-        print(f"  • ✓ Procesuirano:  {stats['processed']:4d}")
-        print(f"  • ⊘ Preskočeno:    {stats['skipped']:4d}")
-        print(f"  • ✗ Greške:        {stats['errors']:4d}")
+        print(f"\n⚠️  SpliceAI uticaj: {stats['splice_affected']:4d} mutacija utiču na splicing")
+        print(f"\n❌ Greške:")
+        print(f"  • Preskočeno:      {stats['skipped']:4d}")
+        print(f"  • Greške:          {stats['errors']:4d}")
         print(f"\n{'=' * 80}")
         print(f"✓ Rezultati sačuvani u: {output_file}")
         print(f"{'=' * 80}\n")
 
         return result_df, stats
+
+
