@@ -86,10 +86,10 @@ class ProteinOneHotEncoder:
         """
         One-hot enkoduje batch proteinskih sekvenci
 
-        Args:
+        ulaz:
             sequences (list): Lista proteinskih sekvenci
 
-        Returns:
+        izlaz:
             np.array: Shape (n_sequences, max_length, n_features)
         """
         # Detektuj max_length ako nije setovan

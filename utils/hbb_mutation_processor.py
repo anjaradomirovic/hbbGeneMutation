@@ -7,9 +7,9 @@ import time
 
 class HBBMutationProcessor:
     def __init__(self, structure_file='hbb_structure.json', fasta_file='hbb_reference.fasta'):
-        """
-        Inicijalizacija procesora sa HBB strukturom i mRNA sekvencom
-        """
+
+        #Inicijalizacija procesora sa HBB strukturom i mRNA sekvencom
+
         # Učitaj strukturu gena
         with open(structure_file, 'r') as f:
             self.structure = json.load(f)
@@ -268,7 +268,7 @@ class HBBMutationProcessor:
 
     def _generate_mrna_without_exons(self, skipped_exon_numbers):
         """
-        Generiše mRNA sekvencu bez specificiranih eksona
+        Generiše mRNA sekvencu bez spec eksona
         """
         if not self.mrna_ref:
             return None

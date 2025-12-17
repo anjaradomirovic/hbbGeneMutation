@@ -74,33 +74,24 @@ def main():
 
     print(f"Preuzeto {len(mutations_df)} HBB mutacija")
 
-    # Test: Proveri šta ima u CSV-u
-    if Path("data/processed/mutation_with_sequences.csv").exists():
-        df_test = pd.read_csv("data/processed/mutation_with_sequences.csv")
+    print("\n" + "-" * 80)
+    print("DISTRIBUCIJA KLINIČKOG ZNAČAJA:")
+    print("-" * 80)
 
-        print("\n🔍 CSV DIJAGNOSTIKA:")
-        print(f"  Redova: {len(df_test)}")
+    csv_path = "data/raw/clinvar_hbb.csv"
+    df = pd.read_csv(csv_path)
+    clinsig_counts = df['clinical_significance'].value_counts()
+    total = len(df)
 
-        if 'processing_status' in df_test.columns:
-            processed_count = (df_test['processing_status'] == 'PROCESSED').sum()
-            print(f"  PROCESSED redova: {processed_count}")
+    print(f"\n{'Kategorija':<40} {'Broj':<10} {'Procenat':<10}")
+    print("-" * 80)
 
-            if 'mutated_mrna' in df_test.columns:
-                valid_mrna = (
-                        df_test['mutated_mrna'].notna() &
-                        (df_test['mutated_mrna'].astype(str).str.len() > 10)
-                ).sum()
-                print(f"  Validnih mRNA: {valid_mrna}")
+    for category, count in clinsig_counts.items():
+        percentage = (count / total) * 100
+        print(f"{str(category):<40} {count:<10} {percentage:>6.2f}%")
 
-                # Ako ima PROCESSED ali nema mRNA, to je problem!
-                if processed_count > 0 and valid_mrna == 0:
-                    print("  ⚠️ PROBLEM: Status je PROCESSED ali nema mRNA podataka!")
-            else:
-                print("  ❌ Kolona 'mutated_mrna' ne postoji")
-        else:
-            print("  ❌ Kolona 'processing_status' ne postoji")
-
-        print()
+    print("-" * 80)
+    print(f"{'UKUPNO':<40} {total:<10} {'100.00%':<10}")
 
     # Generisanje mutiranih nukleotidnih lanaca
     print("\n HBBMutationProcessor")
