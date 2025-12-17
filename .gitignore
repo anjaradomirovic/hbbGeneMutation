@@ -1,2 +1,4 @@
 *.pkl
 data/ml_results/
+data/ml_ready/
+data/encoded_proteins/
