@@ -1,13 +1,6 @@
-import gzip
 import requests
-from Bio import Entrez, SeqIO
-from Bio.SeqRecord import SeqRecord
-import pandas as pd
-import os
-import tempfile
-import time
-import xml.etree.ElementTree as ET
-import re
+from Bio import Entrez
+
 
 class HBBStructure:
     def __init__(self, email):
@@ -61,7 +54,7 @@ class HBBStructure:
                     break
 
             if not canonical_transcript:
-                print("    ❌ Nije pronađen protein-coding transkript!")
+                print("    Nije pronađen protein-coding transkript!")
                 return None
 
             transcript_id = canonical_transcript['id']
@@ -80,7 +73,7 @@ class HBBStructure:
 
             # Ekstraktuj eksone iz Transcript objekta
             if 'Exon' not in transcript_data:
-                print("    ❌ Nema eksona u transkriptu!")
+                print("    Nema eksona u transkriptu!")
                 return None
 
             exons_data = transcript_data['Exon']
@@ -133,7 +126,7 @@ class HBBStructure:
                     introns.append(intron_info)
                     print(f"    Intron {i + 1}: {intron_start:,} - {intron_end:,} ({intron_length:,} bp)")
                 else:
-                    print(f"    ⚠️ Intron {i + 1}: Nevažeći intron (start > end)")
+                    print(f"    Intron {i + 1}: Nevažeći intron (start > end)")
 
             # 8. Preuzmi CDS informacije
             print(f"\n[6] CDS informacija...")
@@ -146,7 +139,7 @@ class HBBStructure:
             cds_data = response.json()
 
             cds_length = len(cds_data['seq'])
-            print(f"    ✓ CDS dužina: {cds_length} bp ({cds_length // 3} aminokiselina)")
+            print(f"    CDS dužina: {cds_length} bp ({cds_length // 3} aminokiselina)")
 
             # 9. Sastavi strukturu
             structure = {
@@ -175,7 +168,7 @@ class HBBStructure:
             }
 
             print(f"\n{'=' * 70}")
-            print("✓ STRUKTURA USPEŠNO PREUZETA")
+            print(" STRUKTURA USPEŠNO PREUZETA")
             print(f"{'=' * 70}")
             print(f"Eksoni: {len(exons)}")
             print(f"Introni: {len(introns)}")
@@ -184,10 +177,10 @@ class HBBStructure:
             return structure
 
         except requests.exceptions.RequestException as e:
-            print(f"\n❌ HTTP greška: {e}")
+            print(f"\n HTTP greška: {e}")
             return None
         except Exception as e:
-            print(f"\n❌ Greška: {e}")
+            print(f"\n Greška: {e}")
             import traceback
             traceback.print_exc()
             return None

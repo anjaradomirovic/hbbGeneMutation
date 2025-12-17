@@ -148,10 +148,10 @@ class ProteinOneHotEncoder:
             (df['translation_status'] == 'SUCCESS')
             ].copy()
 
-        print(f"    ✓ Validnih proteina: {len(valid)}")
+        print(f"     Validnih proteina: {len(valid)}")
 
         if len(valid) == 0:
-            print("\n    ⚠️  Nema validnih proteina za enkodovanje!")
+            print("\n      Nema validnih proteina za enkodovanje!")
             return None
 
         # 3. Ekstraktuj sekvence

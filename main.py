@@ -107,15 +107,15 @@ def main():
         mutations_with_mrna, stats = processor.process_clinvar_file(
             input_file="data/raw/clinvar_hbb.csv",
             output_file="data/processed/mutation_with_sequences.csv",
-            skip_processed=True  # ✅ DODATO - preskače već obrađene
+            skip_processed=True  # DODATO - preskače već obrađene
         )
 
         # Ispravljena statistika - koristi 'newly_processed' umesto 'processed'
         total_processed = stats['already_processed'] + stats['newly_processed']
-        print(f"\n✓ Ukupno procesuirano: {total_processed}/{stats['total']}")
-        print(f"  → Već postojalo: {stats['already_processed']}")
-        print(f"  → Novo obrađeno: {stats['newly_processed']}")
-        print(f"✓ Rezultati sačuvani u: data/processed/mutation_with_sequences.csv")
+        print(f"\n Ukupno procesuirano: {total_processed}/{stats['total']}")
+        print(f" Već postojalo: {stats['already_processed']}")
+        print(f" Novo obrađeno: {stats['newly_processed']}")
+        print(f" Rezultati sačuvani u: data/processed/mutation_with_sequences.csv")
 
         # Prikaži primer procesuiranih mutacija (samo NOVO procesuiranih)
         if stats['newly_processed'] > 0:
@@ -147,9 +147,9 @@ def main():
         elif stats['already_processed'] > 0:
             print(f"\n✓ Sve mutacije su već bile obrađene - nema novih.")
 
-        # Statistika preskočenih
+        #  preskoceni statisytika
         if stats['skipped'] > 0:
-            print(f"\n⚠ {stats['skipped']} mutacija preskočeno:")
+            print(f"\n{stats['skipped']} mutacija preskočeno:")
             skipped = mutations_with_mrna[
                 mutations_with_mrna['processing_status'] == 'SKIPPED'
                 ]
@@ -157,9 +157,9 @@ def main():
             for reason, count in skip_reasons.items():
                 print(f"    • {reason}: {count}")
 
-        # Statistika grešaka
+        #  greske statistika
         if stats['errors'] > 0:
-            print(f"\n❌ {stats['errors']} mutacija sa greškama:")
+            print(f"\n{stats['errors']} mutacija sa greškama:")
             errors = mutations_with_mrna[
                 mutations_with_mrna['processing_status'] == 'ERROR'
                 ]
@@ -168,7 +168,7 @@ def main():
                 print(f"    • {reason}: {count}")
 
     except Exception as e:
-        print(f"\n❌ GREŠKA pri procesiranju mutacija: {e}")
+        print(f"\n GREŠKA pri procesiranju mutacija: {e}")
         import traceback
         traceback.print_exc()
         return
@@ -189,7 +189,7 @@ def main():
         import traceback
         traceback.print_exc()
 
-        # ========== 6. ONE-HOT ENCODING PROTEINA ==========
+
     print("\n" + "=" * 70)
     print("\n[KORAK 6] One-Hot Encoding proteina za ML...")
 
@@ -203,10 +203,10 @@ def main():
         )
 
         if encoded_data:
-            print("\n✓ Enkodovanje završeno!")
+            print("\n Enkodovanje završeno!")
 
             # Pripremi podatke za ML
-            print("\n[7] Priprema podataka za Machine Learning...")
+            print("\n Priprema podataka za Machine Learning...")
             X, y = prepare_for_ml(
                 encoded_data,
                 flatten=True,
@@ -221,25 +221,25 @@ def main():
             )
 
             print("\n" + "=" * 70)
-            print("✓ PODACI SPREMNI ZA MACHINE LEARNING")
+            print(" PODACI SPREMNI ZA MACHINE LEARNING")
             print("=" * 70)
-            print(f"\n📊 Dataset info:")
+            print(f"\nDataset info:")
             print(f"   Ukupno uzoraka: {len(y)}")
             print(f"   Features: {X.shape[1]}")
             print(f"   Train set: {X_train.shape[0]} samples")
             print(f"   Test set: {X_test.shape[0]} samples")
 
-            print(f"\n📁 ML-ready fajlovi:")
+            print(f"\n ML-ready fajlovi:")
             print(f"   1. data/ml_ready/encoded_proteins.npz")
             print(f"   2. data/ml_ready/encoded_proteins_metadata.csv")
             print(f"   3. data/ml_ready/encoded_proteins_encoder.pkl")
 
     except Exception as e:
-        print(f"\n❌ GREŠKA pri enkodovanju: {e}")
+        print(f"\n GREŠKA pri enkodovanju: {e}")
         import traceback
         traceback.print_exc()
         print("\n" + "=" * 70)
-        print("\n[KORAK 7] Treniranje ML modela za predikciju patogenosti...")
+        print("\n Treniranje ML modela za predikciju patogenosti...")
 
     try:
         classifier, results = train_pathogenicity_model(
@@ -249,12 +249,12 @@ def main():
             filter_uncertain=True  # Ukloni Uncertain labele
         )
 
-        print("\n✓ Model uspešno istreniran!")
-        print(f"\n🏆 Najbolji model: {results['best_model_name']}")
+        print("\n Model uspešno istreniran!")
+        print(f"\n Najbolji model: {results['best_model_name']}")
         print(f"   F1-Score: {results['best_score']:.4f}")
 
     except Exception as e:
-        print(f"\n❌ GREŠKA pri treniranju: {e}")
+        print(f"\n GREŠKA pri treniranju: {e}")
         import traceback
         traceback.print_exc()
 

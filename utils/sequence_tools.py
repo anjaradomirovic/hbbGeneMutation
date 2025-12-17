@@ -5,9 +5,6 @@ from Bio.SeqRecord import SeqRecord
 import pandas as pd
 import os
 import tempfile
-import time
-import xml.etree.ElementTree as ET
-import re
 
 
 # PREUZIMANJE REF GENA
@@ -36,13 +33,13 @@ class SequenceTools:
                                             description = "HBB (Hemoglobin Subunit Beta) - Coding Sequence")
                     SeqIO.write(cds_record, output_file, "fasta")
 
-                    print(f"\n✓ Referentna sekvenca uspešno sačuvana u: {output_file}")
+                    print(f"\n✓ Referentna sekvenca sačuvana u: {output_file}")
                     print(f"  Dužina CDS: {len(cds_seq)} bp")
                     print(f"  Broj aminokiselina: {len(cds_seq) // 3}")
 
                     return cds_record
 
-            print("CDS region nije pronađen u sekvenci!")
+            print("CDS region nije pronađen u sekvenci")
             return None
 
         except Exception as e:
@@ -53,24 +50,27 @@ class SequenceTools:
 
     def preuzmi_clinvar_hbb_vcf(self, output_file="data/raw/clinvar_hbb.csv"):
         """
-        Preuzima HBB mutacije iz ClinVar VCF.
-        Automatski briše VCF fajl nakon obrade!
+        Preuzima HBB mutacije iz ClinVar , VCF format,
+        Automatski brise VCF fajl nakon obrade,
+        Format je prevelik sadrzi previse ne bitnih info,
+        Morala sam umesto XML fajla da skidam VCF, i da ga odmah brisem
         """
 
         if os.path.exists(output_file) and os.path.getsize(output_file) > 0:
             print(f"\n✓ CSV fajl već postoji i nije prazan: {output_file}")
             return
 
-            # ClinVar VCF URL
+        # ClinVar VCF URL
         vcf_url = "https://ftp.ncbi.nlm.nih.gov/pub/clinvar/vcf_GRCh38/clinvar.vcf.gz"
 
-        # Kreiraj privremeni fajl koji će se automatski obrisati
+        # privremeni fajl koji se automatski brise
         temp_vcf = None
 
         try:
             print(f"\n[1] Preuzimanje ClinVar VCF fajla")
 
             # Preuzmi u privremeni fajl
+            #'delete' -- whether the file is automatically deleted (default True)
             with tempfile.NamedTemporaryFile(mode='wb', delete=False, suffix='.vcf.gz') as temp_file:
                 temp_vcf = temp_file.name
 
@@ -146,19 +146,19 @@ class SequenceTools:
                             })
 
                     if line_count % 100000 == 0:
-                        print(f"    Obrađeno {line_count:,} linija... (HBB: {len(hbb_mutations)})")
+                        print(f"    Obrađeno {line_count:,} linija. (HBB: {len(hbb_mutations)})")
 
-            print(f"    ✓ Ukupno: {line_count:,} linija")
-            print(f"    ✓ Pronađeno {len(hbb_mutations)} HBB mutacija")
+            print(f"     Ukupno: {line_count:,} linija")
+            print(f"     Pronađeno {len(hbb_mutations)} HBB mutacija")
 
-            # ODMAH OBRIŠI VCF FAJL
-            print(f"\n[3] Brisanje privremenog VCF fajla...")
+            # ODMAH OBRISI VCF FAJL
+            print(f"\n[3] Brisanje privremenog VCF fajla.")
             if os.path.exists(temp_vcf):
                 os.remove(temp_vcf)
-                print(f"    ✓ Obrisan: {temp_vcf} ({file_size_mb:.1f} MB oslobođeno)")
-                temp_vcf = None  # Postavi na None da finally blok ne pokuša ponovo
+                print(f"     Obrisan: {temp_vcf} ({file_size_mb:.1f} MB oslobođeno)")
+                temp_vcf = None  # da finally blok ne pokusa ponovo da obrise
 
-            # Kreiraj DataFrame
+            # Pravljenje dataframe - CSV
             df = pd.DataFrame(hbb_mutations)
 
             if df.empty:
@@ -182,7 +182,7 @@ class SequenceTools:
                 lambda x: clnsig_map.get(str(x), x) if pd.notna(x) else 'not_provided'
             )
 
-            # Sačuvaj CSV
+            # Sacuvaj CSV
             print(f"\n[4] Čuvanje u CSV")
             df.to_csv(output_file, index=False)
 
@@ -193,12 +193,13 @@ class SequenceTools:
             print(f"Ukupno mutacija: {len(df)}")
             print(f"VCF fajl je automatski obrisan")
 
-            print(f"\nDISTRIBUCIJA PO KLINIČKOM ZNAČAJU:")
+            print(f"\nRASPODELA PO KLINICKOM ZNACAJU:")
             print(df['clinical_significance'].value_counts())
 
-            print(f"\n🔍 PRIMER (prvih 3 mutacije):")
-            print(df[['variant_id', 'position', 'ref_allele', 'alt_allele',
-                      'hgvs', 'clinical_significance']].head(3))
+
+            # print(f"\n PRIMER (prvih 3 mutacije):")
+            # print(df[['variant_id', 'position', 'ref_allele', 'alt_allele',
+            #           'hgvs', 'clinical_significance']].head(3))
 
             return df
 
@@ -209,11 +210,11 @@ class SequenceTools:
             return None
 
         finally:
-            # Osiguraj da se VCF obriše čak i ako dođe do greške
+            # VCF obrise cak i ako dodje do greske
             if temp_vcf and os.path.exists(temp_vcf):
                 try:
                     os.remove(temp_vcf)
-                    print(f"\n🗑️  Privremeni VCF fajl obrisan (cleanup)")
+                    print(f"\n  Privremeni VCF fajl obrisan")
                 except:
                     pass
 

@@ -5,16 +5,14 @@ from pathlib import Path
 from Bio.Seq import Seq
 from Bio.Data import CodonTable
 
+#prevod mRNA sekvence u proteine + CSV nova tabela
 
 class ProteinTranslator:
-    """
-    Klasa koja prevodi mRNA sekvence u proteine i generiše CSV tabelu
-    """
 
     def __init__(self):
-        """
-        Inicijalizacija translatora
-        """
+
+        #Inicijalizacija
+
         # Standardna genetska kod tabela
         self.codon_table = CodonTable.standard_dna_table
 
@@ -24,7 +22,7 @@ class ProteinTranslator:
         print(f"\n{'=' * 80}")
         print("PROTEIN TRANSLATOR - Inicijalizovan")
         print(f"{'=' * 80}")
-        print(f"  Genetska kod: Standardna (NCBI table 1)")
+        print(f"  Genetski kod: Standardna (NCBI table 1)")
         print(f"  Stop kodoni: {', '.join(self.stop_codons)}")
         print(f"{'=' * 80}\n")
 
@@ -62,9 +60,9 @@ class ProteinTranslator:
             # Konvertuj u Bio.Seq objekat
             seq = Seq(mrna_sequence)
 
-            # Proveri dužinu (mora biti deljivo sa 3)
+            # Proveri duzinu (mora biti deljivo sa 3)
             if len(seq) % 3 != 0:
-                # Dodaj warning ali nastavi translaciju
+                # warning
                 result['error'] = f"mRNA dužina ({len(seq)}) nije deljiva sa 3 - frameshift"
 
             # Transliraj
@@ -169,37 +167,37 @@ class ProteinTranslator:
         print("PROTEIN TRANSLATION PIPELINE")
         print(f"{'=' * 80}\n")
 
-        # 1. Učitaj referentnu mRNA
-        print(f"[1] Učitavanje referentne mRNA iz {reference_mrna_file}...")
+        # 1. Ucitaj referentnu mRNA
+        print(f"1. Učitavanje referentne mRNA iz {reference_mrna_file}...")
         reference_mrna = self._read_fasta(reference_mrna_file)
-        print(f"    ✓ Referentna mRNA: {len(reference_mrna)} bp")
+        print(f"     Referentna mRNA: {len(reference_mrna)} bp")
 
         # 2. Transliraj referentnu mRNA
-        print(f"\n[2] Translacija referentne mRNA...")
+        print(f"\n2. Translacija referentne mRNA...")
         ref_translation = self.translate_mrna(reference_mrna)
 
         if ref_translation['error']:
-            print(f"    ⚠️  Warning: {ref_translation['error']}")
+            print(f"      Warning: {ref_translation['error']}")
 
         reference_protein = ref_translation['protein_sequence']
-        print(f"    ✓ Referentni protein: {len(reference_protein)} aminokiselina")
+        print(f"    Referentni protein: {len(reference_protein)} aminokiselina")
         print(f"    Prvih 20 AA: {reference_protein[:20]}...")
 
         # 3. Učitaj mutacije
-        print(f"\n[3] Učitavanje mutacija iz {input_file}...")
+        print(f"\n3. Učitavanje mutacija iz {input_file}...")
         df = pd.read_csv(input_file)
-        print(f"    ✓ Učitano {len(df)} mutacija")
+        print(f"     Učitano {len(df)} mutacija")
 
-        # Filtriraj samo procesuirane (sa mRNA)
+        # 3.2. Filtriraj samo procesuirane (sa mRNA)
         processed = df[df['processing_status'] == 'PROCESSED'].copy()
-        print(f"    ✓ Procesuirano (sa mRNA): {len(processed)} mutacija")
+        print(f"     3.2 Procesuirano (sa mRNA): {len(processed)} mutacija")
 
         if len(processed) == 0:
-            print("\n    ⚠️  Nema procesuiranih mutacija za translaciju!")
+            print("\n      Nema procesuiranih mutacija za translaciju!")
             return None
 
         # 4. Transliraj sve mutirane mRNA sekvence
-        print(f"\n[4] Translacija {len(processed)} mutiranih mRNA...")
+        print(f"\n4. Translacija {len(processed)} mutiranih mRNA...")
 
         translations = []
         stats = {
@@ -309,7 +307,7 @@ class ProteinTranslator:
         print(f"\n[5] Kreiranje output tabele...")
         result_df = pd.DataFrame(translations)
 
-        # 6. Sačuvaj
+        # 6. Sacuvaj
         output_dir = Path(output_file).parent
         output_dir.mkdir(parents=True, exist_ok=True)
         result_df.to_csv(output_file, index=False)
@@ -330,8 +328,8 @@ class ProteinTranslator:
         print(f"  • Truncated:           {stats['truncated']:4d}")
         print(f"  • Extended:            {stats['extended']:4d}")
         print(f"\nProblemi:")
-        print(f"  ⚠️  Preuranjen stop:    {stats['with_premature_stop']:4d}")
-        print(f"  ⚠️  Frameshift:         {stats['frameshift']:4d}")
+        print(f"    Preuranjen stop:    {stats['with_premature_stop']:4d}")
+        print(f"    Frameshift:         {stats['frameshift']:4d}")
         print(f"\n{'=' * 80}")
         print(f"✓ Protein translacije sačuvane u: {output_file}")
         print(f"{'=' * 80}\n")

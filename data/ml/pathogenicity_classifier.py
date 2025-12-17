@@ -31,11 +31,8 @@ import warnings
 
 warnings.filterwarnings('ignore')
 
-
+#ML modeli, predikcija patogenosti
 class PathogenicityClassifier:
-    """
-    ML sistem za predikciju patogenosti mutacija - POPRAVLJENA VERZIJA
-    """
 
     def __init__(self, random_state=42, use_smote=True):
         """
@@ -75,7 +72,7 @@ class PathogenicityClassifier:
 
     def filter_clean_labels(self, X, y, verbose=True):
         """
-        🔧 NOVA FUNKCIJA: Filtrira samo čiste Pathogenic/Benign labele
+        NOVA FUNKCIJA: Filtrira samo čiste Pathogenic/Benign labele
 
         Args:
             X: Feature matrica
@@ -87,9 +84,9 @@ class PathogenicityClassifier:
         """
         if verbose:
             print(f"\n{'=' * 80}")
-            print("🧹 ČIŠĆENJE LABELA")
+            print(" ČIŠĆENJE LABELA")
             print(f"{'=' * 80}")
-            print(f"\n📊 Pre čišćenja:")
+            print(f"\n Pre čišćenja:")
             print(f"  Ukupno uzoraka: {len(y)}")
             unique, counts = np.unique(y, return_counts=True)
             for u, c in zip(unique, counts):
@@ -102,7 +99,7 @@ class PathogenicityClassifier:
         y_clean = y[clean_mask]
 
         if verbose:
-            print(f"\n✅ Posle čišćenja:")
+            print(f"\n Posle čišćenja:")
             print(f"  Ukupno uzoraka: {len(y_clean)}")
             unique, counts = np.unique(y_clean, return_counts=True)
             for u, c in zip(unique, counts):
@@ -110,8 +107,8 @@ class PathogenicityClassifier:
                 print(f"    {label}: {c} ({c / len(y_clean) * 100:.1f}%)")
 
             removed = len(y) - len(y_clean)
-            print(f"\n  ❌ Uklonjeno: {removed} uzoraka ({removed / len(y) * 100:.1f}%)")
-            print(f"  ✓ Zadržano: {len(y_clean)} uzoraka ({len(y_clean) / len(y) * 100:.1f}%)")
+            print(f"\n  Uklonjeno: {removed} uzoraka ({removed / len(y) * 100:.1f}%)")
+            print(f"   Zadržano: {len(y_clean)} uzoraka ({len(y_clean) / len(y) * 100:.1f}%)")
             print(f"{'=' * 80}\n")
 
         return X_clean, y_clean
@@ -189,10 +186,10 @@ class PathogenicityClassifier:
         Primenjuje SMOTE za balansiranje klasa
         """
         print(f"\n{'=' * 80}")
-        print("⚖️  SMOTE BALANSIRANJE")
+        print("  SMOTE BALANSIRANJE")
         print(f"{'=' * 80}")
 
-        print(f"\n📊 Pre SMOTE:")
+        print(f"\n Pre SMOTE:")
         unique, counts = np.unique(y_train, return_counts=True)
         for u, c in zip(unique, counts):
             label = 'Pathogenic' if u == 1 else 'Benign'
@@ -202,13 +199,13 @@ class PathogenicityClassifier:
         self.smote = SMOTE(random_state=self.random_state, k_neighbors=3)
         X_train_balanced, y_train_balanced = self.smote.fit_resample(X_train, y_train)
 
-        print(f"\n✅ Posle SMOTE:")
+        print(f"\n Posle SMOTE:")
         unique, counts = np.unique(y_train_balanced, return_counts=True)
         for u, c in zip(unique, counts):
             label = 'Pathogenic' if u == 1 else 'Benign'
             print(f"  {label}: {c} ({c / len(y_train_balanced) * 100:.1f}%)")
 
-        print(f"\n  📈 Povećanje: {len(y_train)} → {len(y_train_balanced)} uzoraka")
+        print(f"\n  Povećanje: {len(y_train)} → {len(y_train_balanced)} uzoraka")
         print(f"{'=' * 80}\n")
 
         return X_train_balanced, y_train_balanced
@@ -316,7 +313,7 @@ class PathogenicityClassifier:
         print(results_df.to_string(index=False))
 
         print(f"\n{'=' * 80}")
-        print(f"🏆 NAJBOLJI MODEL: {self.best_model_name}")
+        print(f" NAJBOLJI MODEL: {self.best_model_name}")
         print(f"{'=' * 80}")
         print(f"  F1-Score: {self.best_score:.4f}")
         print(f"  Recall:   {self.scores[self.best_model_name]['recall']:.4f}")
@@ -446,7 +443,6 @@ class PathogenicityClassifier:
         print(f"✓ Najbolji model sačuvan u: {output_file}")
 
 
-# ========== GLAVNI PIPELINE - POPRAVLJEN ==========
 
 def train_pathogenicity_model(encoded_data_file='data/ml_ready/encoded_proteins.npz',
                               output_dir='data/ml_results',
@@ -473,7 +469,7 @@ def train_pathogenicity_model(encoded_data_file='data/ml_ready/encoded_proteins.
     labels = data['labels']
     additional_features = data['additional_features']
 
-    print(f"    ✓ Učitano {mutated_encoded.shape[0]} uzoraka")
+    print(f"     Učitano {mutated_encoded.shape[0]} uzoraka")
 
     # 2. Pripremi feature-e
     print(f"\n[2] Priprema feature-a...")
@@ -488,7 +484,7 @@ def train_pathogenicity_model(encoded_data_file='data/ml_ready/encoded_proteins.
     # 3. Inicijalizuj classifier
     classifier = PathogenicityClassifier(random_state=42, use_smote=use_smote)
 
-    # 4. 🔧 ČISTI LABELE (ukloni Uncertain/Other)
+    # 4. ČISTI LABELE (ukloni Uncertain/Other)
     if filter_uncertain:
         X, y = classifier.filter_clean_labels(X, y, verbose=True)
 
@@ -519,7 +515,7 @@ def train_pathogenicity_model(encoded_data_file='data/ml_ready/encoded_proteins.
     print(f"\n{'=' * 80}")
     print("✓ TRENIRANJE ZAVRŠENO")
     print(f"{'=' * 80}")
-    print(f"\n📁 Rezultati:")
+    print(f"\n Rezultati:")
     print(f"   - Model: {output_dir}/best_model.pkl")
     print(f"   - Report: {output_dir}/classification_report.txt")
     print(f"   - Plots: {output_dir}/*.png")
