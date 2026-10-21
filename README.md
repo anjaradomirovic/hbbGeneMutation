@@ -10,7 +10,7 @@ From genetic variant to protein: a pipeline that follows mutations of the human 
 
 **Hemoglobin is a clear example.** It carries oxygen in blood and is built from four chains, each holding a heme group with an **iron atom** at its center, which is where oxygen binds. HBB encodes the beta chain, and its mutations cause diseases such as sickle cell disease and beta thalassemia, which can come from a change of a single amino acid.
 
-![Hemoglobin: heme b and the four-chain protein with iron-containing heme groups](hemoglobin.webp)
+![Hemoglobin: heme b and the four-chain protein with iron-containing heme groups](Structure-of-Hemoglobin.webp)
 
 **A sequence of amino acids says little without the shape of the protein.** A protein works because of how its chain folds in three dimensions. Two sequences that differ by one amino acid can look almost identical as text, yet fold differently, and the shape decides whether the protein works. In hemoglobin the question is concrete: the iron atom sits in a pocket held in place by specific residues, so a small geometric or topological change around it could affect how well iron and oxygen are bound.
 
